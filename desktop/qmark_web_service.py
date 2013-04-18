@@ -1,3 +1,4 @@
+import urlparse
 from BaseHTTPServer import BaseHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
 
@@ -25,18 +26,33 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         command_sequence = self.head()
-        if command_sequence is not None:
-            self.wfile.write('<html><head><title>qmark web service</title></head>')
-            self.wfile.write('<body><p>')
-            for command in command_sequence:
-                command()
-            base_path = self.path.rstrip('/')
-            for name in sorted(commands):
-                self.wfile.write('<a href="%s/%s">%s</a><br>' % (base_path, name, name))
-            self.wfile.write('</p></body></html>')
+        body = 'no_body' not in self.query_string_dict
+        try:
+            if command_sequence is not None:
+                if body:
+                    self.wfile.write('<html><head><title>qmark web service</title></head>')
+                    self.wfile.write('<body><p>')
+                for command in command_sequence:
+                    command()
+                if body:
+                    base_path = self.path.rstrip('/')
+                    for name in sorted(commands):
+                        self.wfile.write('<a href="%s/%s">%s</a><br>' % (base_path, name, name))
+                    self.wfile.write('</p></body></html>')
+        except OSError:
+            # The lamp may have been disconnected and reconnected, try to initialize again.
+            init_lamp_and_commands()
+            raise
 
     def parse_command_sequence(self):
-        path = self.path.lstrip('/')
+        path = self.path.lstrip('/').rstrip()
+
+        if '?' in path:
+            path, qs = path.split('?', 1)
+            self.query_string_dict = urlparse.parse_qs(qs)
+        else:
+            self.query_string_dict = {}
+
         path = path.split('/')
         if path == ['']:
             return []

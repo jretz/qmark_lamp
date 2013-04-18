@@ -16,7 +16,7 @@ they are mnemonics: Dark, Light, Coin, One-up, and Pause. For example, to turn t
 on for the duration of the coin sound and then right back off, send LCD. To do that three
 times with a 1/4 second pause between each, send LCDPPPPPLCDPPPPPLCD.
 */
-#define SERIAL_CONTROL_ENABLED false
+#define SERIAL_CONTROL_ENABLED true
 
 #if SERIAL_CONTROL_ENABLED
   #define COMMAND_LIGHT_OFF 'D'
@@ -76,16 +76,18 @@ void playSound(int speaker_pin, int num_notes, int notes[], int durations[]) {
 }
 
 boolean checkSensor() {
-  int readValue = cs_4_2.capSense(30);
-  if (readValue == -2) {
-    for (int i = 0; i < 2; i++) {
-      digitalWrite(LIGHT_PIN, HIGH);
-      delay(500);
-      digitalWrite(LIGHT_PIN, LOW);
-      delay(500);
+  #if (SERIAL_CONTROL_ENABLED == false)
+    int readValue = cs_4_2.capSense(30);
+    if (readValue == -2) {
+      for (int i = 0; i < 2; i++) {
+        digitalWrite(LIGHT_PIN, HIGH);
+        delay(500);
+        digitalWrite(LIGHT_PIN, LOW);
+        delay(500);
+      }
     }
-  }
-  return readValue > threshold;
+    return readValue > threshold;
+  #endif
 }
 
 void loop() {

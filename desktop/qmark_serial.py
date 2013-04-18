@@ -24,7 +24,7 @@ class QuestionMarkLamp(object):
 
         self.serial_port = SerialPort(port_name, 9600)
 
-        # Arduino resets when the serial port is open, give it time to boot up.
+        # Arduino resets when the serial port is opened, give it time to boot up.
         time.sleep(5)
 
     def light_off(self):
