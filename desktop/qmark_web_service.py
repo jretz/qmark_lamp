@@ -1,3 +1,5 @@
+import Queue
+import threading
 import urlparse
 from BaseHTTPServer import BaseHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
@@ -7,6 +9,7 @@ import qmark_serial
 PORT = 8888
 
 commands = None
+command_queue = Queue.Queue(1000000)
 
 
 class HTTPRequestHandler(BaseHTTPRequestHandler):
@@ -33,7 +36,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                     self.wfile.write('<html><head><title>qmark web service</title></head>')
                     self.wfile.write('<body><p>')
                 for command in command_sequence:
-                    command()
+                    command_queue.put(command)
                 if body:
                     base_path = self.path.rstrip('/')
                     for name in sorted(commands):
@@ -77,16 +80,24 @@ def init_lamp_and_commands():
     )
 
 
+def command_thread():
+    for command in iter(command_queue.get, 'there is no stop sentinel'):
+        command()
+
+
 def main():
     init_lamp_and_commands()
+
+    thread = threading.Thread(target=command_thread)
+    thread.setDaemon(True)
+    thread.start()
 
     server_address = ('', PORT)
     httpd = HTTPServer(server_address, HTTPRequestHandler)
     try:
         httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    httpd.server_close()
+    finally:
+        httpd.server_close()
 
 
 if __name__ == '__main__':
