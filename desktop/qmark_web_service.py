@@ -9,7 +9,7 @@ import qmark_serial
 PORT = 8888
 
 commands = None
-command_queue = Queue.Queue(1000000)
+command_queue = Queue.Queue(100000)
 
 
 class HTTPRequestHandler(BaseHTTPRequestHandler):
@@ -30,22 +30,17 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         command_sequence = self.head()
         body = 'no_body' not in self.query_string_dict
-        try:
-            if command_sequence is not None:
-                if body:
-                    self.wfile.write('<html><head><title>qmark web service</title></head>')
-                    self.wfile.write('<body><p>')
-                for command in command_sequence:
-                    command_queue.put(command)
-                if body:
-                    base_path = self.path.rstrip('/')
-                    for name in sorted(commands):
-                        self.wfile.write('<a href="%s/%s">%s</a><br>' % (base_path, name, name))
-                    self.wfile.write('</p></body></html>')
-        except OSError:
-            # The lamp may have been disconnected and reconnected, try to initialize again.
-            init_lamp_and_commands()
-            raise
+        if command_sequence is not None:
+            if body:
+                self.wfile.write('<html><head><title>qmark web service</title></head>')
+                self.wfile.write('<body><p>')
+            for command in command_sequence:
+                command_queue.put(command)
+            if body:
+                base_path = self.path.rstrip('/')
+                for name in sorted(commands):
+                    self.wfile.write('<a href="%s/%s">%s</a><br>' % (base_path, name, name))
+                self.wfile.write('</p></body></html>')
 
     def parse_command_sequence(self):
         path = self.path.lstrip('/').rstrip()
@@ -81,13 +76,19 @@ def init_lamp_and_commands():
 
 
 def command_thread():
-    for command in iter(command_queue.get, 'there is no stop sentinel'):
-        command()
+    do_init = True
+    while True:
+        try:
+            if do_init:
+                init_lamp_and_commands()
+                do_init = False
+            command = command_queue.get()
+            command()
+        except Exception:
+            do_init = True
 
 
 def main():
-    init_lamp_and_commands()
-
     thread = threading.Thread(target=command_thread)
     thread.setDaemon(True)
     thread.start()
