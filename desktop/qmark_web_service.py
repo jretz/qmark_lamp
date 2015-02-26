@@ -82,9 +82,15 @@ def command_thread():
             if do_init:
                 init_lamp_and_commands()
                 do_init = False
-            command = command_queue.get()
-            command()
+            try:
+                command = command_queue.get(timeout=1)
+            except Queue.Empty:
+                commands['light_off']()
+            else:
+                command()
         except Exception:
+            import traceback
+            traceback.print_exc()
             do_init = True
 
 
